@@ -106,7 +106,7 @@ fn game(input: &str) -> IResult<&str, Game> {
 }
 
 fn main() {
-    let input = get_input(2);
+    let input = get_input(2).unwrap();
     println!("{input}");
 
     let games = input

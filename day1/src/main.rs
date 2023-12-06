@@ -66,7 +66,7 @@ fn replace_digit_words(input: &str) -> String {
 }
 
 fn main() {
-    let input = get_input_cached(1, true);
+    let input = get_input_cached(1, true).unwrap();
 
     let digits1 = get_digits(&input);
     let sum1 = sum_coordinates(digits1);

@@ -127,7 +127,7 @@ impl Collector {
 }
 
 fn main() {
-    let plan = Plan::from(get_input(3));
+    let plan = Plan::from(get_input(3).unwrap());
 
     let c = Collector::new();
     let numbers = c.collect(&plan);

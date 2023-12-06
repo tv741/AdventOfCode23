@@ -6,7 +6,7 @@ use rayon::prelude::*;
 struct MapEntry {
     src: usize,
     dst: usize,
-    len: usize
+    len: usize,
 }
 
 impl MapEntry {
@@ -22,12 +22,14 @@ impl MapEntry {
 
 #[derive(Debug)]
 struct Map {
-    entries: Vec<MapEntry>
+    entries: Vec<MapEntry>,
 }
 
 impl Map {
     fn new() -> Self {
-        Self {entries: Vec::new()}
+        Self {
+            entries: Vec::new(),
+        }
     }
 
     fn map(&self, i: usize) -> usize {
@@ -36,20 +38,32 @@ impl Map {
 }
 
 fn main() {
-    let input = get_input_cached(5, false);
+    let input = get_input_cached(5, false).unwrap();
     let mut lines = input.lines();
-    let seeds: Vec<usize> = lines.next().unwrap().split_whitespace().skip(1).map(|s| s.parse::<usize>().unwrap()).collect();
+    let seeds: Vec<usize> = lines
+        .next()
+        .unwrap()
+        .split_whitespace()
+        .skip(1)
+        .map(|s| s.parse::<usize>().unwrap())
+        .collect();
 
     let mut maps = Vec::<Map>::new();
     for line in lines {
-        if line.is_empty() { continue }
+        if line.is_empty() {
+            continue;
+        }
         let parts: Vec<_> = line.split_whitespace().collect();
 
         if parts[1] == "map:" {
             maps.push(Map::new());
         } else {
             let nums: Vec<_> = parts.iter().map(|s| s.parse::<usize>().unwrap()).collect();
-            maps.last_mut().unwrap().entries.push(MapEntry { src: nums[1], dst: nums[0], len: nums[2]});
+            maps.last_mut().unwrap().entries.push(MapEntry {
+                src: nums[1],
+                dst: nums[0],
+                len: nums[2],
+            });
         }
     }
 
@@ -59,29 +73,30 @@ fn main() {
     }
     println!("Part One {}", items.iter().min().unwrap());
 
+    let tuples: Vec<_> = seeds.iter().tuples::<(_, _)>().collect();
+    let min = tuples
+        .par_iter()
+        .map(|(&start, &len)| {
+            let mut min = usize::MAX;
+            for (n, seed) in (start..(start + len)).enumerate() {
+                let mut item = seed;
+                for map in maps.iter() {
+                    item = map.map(item);
+                }
 
-    let tuples: Vec<_> = seeds.iter().tuples::<(_,_)>().collect(); 
-    let min = tuples.par_iter().map(|(&start, &len)| {
-        let mut min = usize::MAX;
-        for (n, seed) in (start..(start+len)).enumerate() {
-            let mut item = seed;
-            for map in maps.iter() {
-                item = map.map(item);
-            }
+                let new_min = min.min(item);
+                if new_min != min {
+                    println!("min: {new_min}");
+                    min = new_min;
+                }
 
-            let new_min = min.min(item);
-            if new_min != min {
-                println!("min: {new_min}");
-                min = new_min;
+                if n % (1024 * 1024) == 0 {
+                    dbg!(n as f32 / len as f32);
+                }
             }
+            min
+        })
+        .min();
 
-            if n % (1024*1024) == 0 {
-                dbg!(n as f32 / len as f32);
-            }
-        }
-        min
-    }).min();
-        
     println!("Part Two {}", min.unwrap());
-
 }
