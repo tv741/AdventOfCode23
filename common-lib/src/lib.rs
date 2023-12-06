@@ -1,6 +1,6 @@
 use curl::easy::{Easy2, Handler, WriteError};
 use std::fs::File;
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{Read, Write};
 
 struct Collector(Vec<u8>);
 
@@ -26,10 +26,11 @@ pub fn get_input(day: usize) -> String {
 }
 
 pub fn get_input_cached(day: usize, example: bool) -> String {
+    let root = concat!(env!("CARGO_MANIFEST_DIR"), "/..");
     let path = if example {
-        format!("./input/example{day}.txt")
+        format!("{root}/input/example{day}.txt")
     } else {
-        format!("./input/day{day}.txt")
+        format!("{root}/input/day{day}.txt")
     };
 
     if let Ok(mut input) = File::open(&path) {
