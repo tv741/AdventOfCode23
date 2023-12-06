@@ -48,3 +48,13 @@ pub fn get_input_cached(day: usize, example: bool) -> String {
         panic!("Example input is only supported for cached input!");
     }
 }
+
+pub trait ParseNums {
+    fn parse_nums(&self) -> impl Iterator<Item = usize>;
+}
+
+impl ParseNums for &str {
+    fn parse_nums(&self) -> impl Iterator<Item = usize> {
+        self.split_whitespace().filter_map(|s| s.parse::<usize>().ok())
+    }
+}

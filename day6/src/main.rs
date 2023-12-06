@@ -1,7 +1,7 @@
 #![feature(test)]
 extern crate test;
 
-use common_lib::get_input_cached;
+use common_lib::{get_input_cached, ParseNums};
 use itertools::free::join;
 
 fn func(times: Vec<usize>, distances: Vec<usize>) -> usize {
@@ -22,8 +22,8 @@ fn func(times: Vec<usize>, distances: Vec<usize>) -> usize {
 
 fn part1(input: &str) -> usize {
     let mut lines = input.lines();
-    let times: Vec<_> = lines.next().unwrap().split_whitespace().skip(1).map(|s| s.parse::<usize>().unwrap()).collect();
-    let distances: Vec<_> = lines.next().unwrap().split_whitespace().skip(1).map(|s| s.parse::<usize>().unwrap()).collect();
+    let times: Vec<_> = lines.next().unwrap().parse_nums().collect();
+    let distances: Vec<_> = lines.next().unwrap().parse_nums().collect();
 
     func(times, distances)
 }
