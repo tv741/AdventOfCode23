@@ -2,6 +2,7 @@ use curl::easy::{Easy2, Handler, WriteError};
 use std::error::Error;
 use std::fs::File;
 use std::io::{Read, Write};
+use std::str::FromStr;
 
 pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
 struct Collector(Vec<u8>);
@@ -53,13 +54,12 @@ pub fn get_input_cached(day: usize, example: bool) -> Result<String> {
     }
 }
 
-pub trait ParseNums {
-    fn parse_nums(&self) -> impl Iterator<Item = usize>;
+pub trait ParseNums<T> {
+    fn parse_nums(&self) -> impl Iterator<Item = T>;
 }
 
-impl ParseNums for &str {
-    fn parse_nums(&self) -> impl Iterator<Item = usize> {
-        self.split_whitespace()
-            .filter_map(|s| s.parse::<usize>().ok())
+impl<T: FromStr> ParseNums<T> for &str {
+    fn parse_nums(&self) -> impl Iterator<Item = T> {
+        self.split_whitespace().filter_map(|s| s.parse::<T>().ok())
     }
 }
