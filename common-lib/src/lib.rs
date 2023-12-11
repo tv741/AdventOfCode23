@@ -3,6 +3,7 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::str::FromStr;
+use std::fmt;
 
 pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
 struct Collector(Vec<u8>);
@@ -61,5 +62,23 @@ pub trait ParseNums<T> {
 impl<T: FromStr> ParseNums<T> for &str {
     fn parse_nums(&self) -> impl Iterator<Item = T> {
         self.split_whitespace().filter_map(|s| s.parse::<T>().ok())
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Point{
+    pub x: usize,
+    pub y: usize,
+}
+
+impl fmt::Debug for Point {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({:?}, {:?})", self.x, self.y)
+    }
+}
+
+impl Point {
+    pub fn manhatten(&self, rhs: &Self) -> usize {
+        ((self.x as isize - rhs.x as isize).abs() + (self.y as isize - rhs.y as isize).abs()) as usize
     }
 }
