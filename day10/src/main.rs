@@ -121,7 +121,6 @@ fn part2(parents: &mut HashMap<Pipe, (Pipe, usize)>) -> Result<usize> {
                 x: x as f64,
                 y: y as f64,
             }) {
-                dbg!((x, y));
                 points_inside += 1;
             }
         }
