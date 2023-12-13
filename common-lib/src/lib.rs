@@ -1,9 +1,9 @@
 use curl::easy::{Easy2, Handler, WriteError};
 use std::error::Error;
+use std::fmt;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::str::FromStr;
-use std::fmt;
 
 pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
 struct Collector(Vec<u8>);
@@ -66,7 +66,7 @@ impl<T: FromStr> ParseNums<T> for &str {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Point{
+pub struct Point {
     pub x: usize,
     pub y: usize,
 }
@@ -79,6 +79,36 @@ impl fmt::Debug for Point {
 
 impl Point {
     pub fn manhatten(&self, rhs: &Self) -> usize {
-        ((self.x as isize - rhs.x as isize).abs() + (self.y as isize - rhs.y as isize).abs()) as usize
+        ((self.x as isize - rhs.x as isize).abs() + (self.y as isize - rhs.y as isize).abs())
+            as usize
+    }
+}
+
+pub struct RowIter<'a, T> {
+    data: &'a Vec<Vec<T>>,
+    n: usize,
+}
+
+impl<'a, T: Copy> Iterator for RowIter<'a, T> {
+    type Item = Vec<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.n < self.data[0].len() {
+            let res = self.data.iter().map(|l| l[self.n]).collect();
+            self.n += 1;
+            Some(res)
+        } else {
+            None
+        }
+    }
+}
+
+pub trait IntoRowIter<T> {
+    fn row_iter(&self) -> RowIter<T>;
+}
+
+impl<T> IntoRowIter<T> for Vec<Vec<T>> {
+    fn row_iter(&self) -> RowIter<T> {
+        RowIter { data: self, n: 0 }
     }
 }
