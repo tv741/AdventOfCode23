@@ -84,6 +84,12 @@ impl Point {
     }
 }
 
+impl From<(usize, usize)> for Point {
+    fn from((x, y): (usize, usize)) -> Self {
+        Point { x, y }
+    }
+}
+
 pub struct RowIter<'a, T> {
     data: &'a Vec<Vec<T>>,
     n: usize,
