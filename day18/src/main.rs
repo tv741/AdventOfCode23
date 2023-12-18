@@ -60,12 +60,8 @@ fn part1(input: &str) -> Result<usize> {
         min_y = min_y.min(pos.1);
     }
 
-    dbg!((min_x, max_x, min_y, max_y,));
-
     let size_x = (max_x - min_x + 3) as usize;
     let size_y = (max_y - min_y + 3) as usize;
-
-    dbg!((size_x, size_y));
 
     let mut map = vec![vec![0u32; size_y]; size_x];
 
@@ -121,19 +117,17 @@ fn part1(input: &str) -> Result<usize> {
 fn part2(input: &str) -> Result<usize> {
     let steps_iter = input.lines().map(|l| l.split_whitespace());
 
-    let mut min_x: isize = 0;
-    let mut max_x: isize = 0;
-    let mut min_y: isize = 0;
-    let mut max_y: isize = 0;
-    let mut steps = Vec::<((isize, isize), usize)>::new();
+    let mut edge_len = 0;
+    let mut area = 0;
 
-    let mut pos = (0, 0);
+    let mut pos: (isize, isize) = (0, 0);
+    let mut prev: Option<(isize, isize)> = None;
     for step in steps_iter {
         let hex = step.skip(2).next().unwrap();
-        let len = usize::from_str_radix(&hex[2..7], 16).unwrap();
+        let len = isize::from_str_radix(&hex[2..7], 16).unwrap();
         let dir_str = &hex[7..8];
 
-        let dir = match dir_str {
+        let dir: (isize, isize) = match dir_str {
             "0" => (0, 1),
             "2" => (0, -1),
             "1" => (1, 0),
@@ -141,74 +135,21 @@ fn part2(input: &str) -> Result<usize> {
             _ => panic!(),
         };
 
-        steps.push((dir, len));
+        pos.0 += dir.0 * len;
+        pos.1 += dir.1 * len;
+        edge_len += len;
 
-        for _ in 0..len {
-            pos.0 += dir.0;
-            pos.1 += dir.1;
+        if let Some(prev_pos) = prev {
+            let trapez = (prev_pos.1 - pos.1) * (prev_pos.0 + pos.0);
+            area += trapez;
         }
-        min_x = min_x.min(pos.0);
-        max_x = max_x.max(pos.0);
-        max_y = max_y.max(pos.1);
-        min_y = min_y.min(pos.1);
+
+        prev = Some(pos);
     }
 
-    dbg!((min_x, max_x, min_y, max_y,));
+    let total = (area + edge_len) / 2 + 1;
 
-    let size_x = (max_x - min_x + 3) as usize;
-    let size_y = (max_y - min_y + 3) as usize;
-
-    dbg!((size_x, size_y));
-
-    // /let mut map = vec![vec![0u32; size_y]; size_x];
-
-    let mut pos = Point {
-        x: (-min_x + 1) as usize,
-        y: (-min_y + 1) as usize,
-    };
-    dbg!(pos);
-
-    // map[pos.x][pos.y] = 0xffffff;
-
-    // for (dir, len) in steps {
-    //     for _ in 0..len {
-    //         pos += dir;
-    //         map[pos.x][pos.y] = 0xffffff;
-    //     }
-    // }
-
-    // for x in 0..100 {
-    //     for y in 0..100 {
-    //         if map[x][y] != 0 {
-    //             print!("#");
-    //         } else {
-    //             print!(".");
-    //         }
-    //     }
-    //     println!(" ");
-    // }
-    // println!(" ");
-
-    // fill(&mut map, Point { x: 0, y: 0 }, size_x, size_y);
-
-    // let mut total = 0;
-    // for x in 0..size_x {
-    //     for y in 0..size_y {
-    //         if map[x][y] == 42 {
-    //             //print!("*");
-    //         } else if map[x][y] > 42 {
-    //             //print!("#");
-    //             total += 1;
-    //         } else {
-    //             //print!(".");
-    //             total += 1;
-    //         }
-    //     }
-    //     //println!(" ");
-    // }
-    // //println!(" ");
-
-    Ok(0)
+    Ok(total as usize)
 }
 
 fn main() -> Result<()> {
