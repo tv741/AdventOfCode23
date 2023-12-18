@@ -1,7 +1,7 @@
 #![feature(test)]
 extern crate test;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use common_lib::{get_input_cached, Result};
 
@@ -173,12 +173,89 @@ fn part2(input: &str) -> Result<usize> {
 
     Ok(max)
 }
+type Beam = ((isize, isize), (isize, isize));
+
+fn func(
+    game: &[Vec<char>],
+    beam: Beam,
+    cache: &mut HashMap<Beam, Option<HashSet<(isize, isize)>>>,
+    size: (isize, isize),
+) -> HashSet<(isize, isize)> {
+    if let Some(res) = cache.get(&beam) {
+        res.clone().unwrap_or_default()
+    } else {
+        cache.insert(beam, None);
+        let res = _func(game, beam, cache, size);
+        *cache.get_mut(&beam).unwrap() = Some(res.clone());
+        res
+    }
+}
+
+fn _func(
+    game: &[Vec<char>],
+    beam: Beam,
+    cache: &mut HashMap<Beam, Option<HashSet<(isize, isize)>>>,
+    size: (isize, isize),
+) -> HashSet<(isize, isize)> {
+    let ((mut x, mut y), (mut dx, mut dy)) = beam;
+
+    let mut new_beam = None;
+
+    let field = game[x as usize][y as usize];
+
+    match (field, (dx, dy)) {
+        ('\\', (1, 0)) => (dx, dy) = (0, 1),
+        ('\\', (-1, 0)) => (dx, dy) = (0, -1),
+        ('\\', (0, 1)) => (dx, dy) = (1, 0),
+        ('\\', (0, -1)) => (dx, dy) = (-1, 0),
+        ('/', (1, 0)) => (dx, dy) = (0, -1),
+        ('/', (-1, 0)) => (dx, dy) = (0, 1),
+        ('/', (0, 1)) => (dx, dy) = (-1, 0),
+        ('/', (0, -1)) => (dx, dy) = (1, 0),
+        ('|', (0, 1)) | ('|', (0, -1)) => {
+            (dx, dy) = (1, 0);
+            new_beam = Some(((x, y), (-1, 0)));
+        }
+        ('-', (1, 0)) | ('-', (-1, 0)) => {
+            (dx, dy) = (0, 1);
+            new_beam = Some(((x, y), (0, -1)));
+        }
+        _ => {}
+    }
+
+    x = x + dx;
+    y = y + dy;
+
+    let mut res1 = if x >= 0 && x < size.0 && y >= 0 && y < size.1 {
+        func(game, ((x, y), (dx, dy)), cache, size)
+    } else {
+        HashSet::new()
+    };
+    res1.insert((x, y));
+
+    if let Some(beam) = new_beam {
+        res1.extend(func(game, beam, cache, size).iter());
+    };
+
+    res1
+}
+
+fn part3(input: &str) -> Result<usize> {
+    let game: Vec<Vec<char>> = input.lines().map(|l| l.chars().collect()).collect();
+    let mut cache = HashMap::new();
+    let size_x = game.len() as isize;
+    let size_y = game[0].len() as isize;
+    let max = func(&game, ((0, 0), (0, 1)), &mut cache, (size_x, size_y));
+
+    Ok(max.len())
+}
 
 fn main() -> Result<()> {
-    let input = get_input_cached(DAY, false)?;
+    let input = get_input_cached(DAY, true)?;
 
     println!("Part One: {}", part1(&input)?);
-    println!("Part Two: {}", part2(&input)?);
+    //println!("Part Two: {}", part2(&input)?);
+    println!("Part Two: {}", part3(&input)?);
 
     Ok(())
 }
@@ -197,6 +274,6 @@ mod tests {
     #[bench]
     fn bench_part2(b: &mut Bencher) {
         let input = get_input_cached(DAY, false).unwrap();
-        b.iter(|| black_box(part2(&input).unwrap()));
+        b.iter(|| black_box(part3(&input).unwrap()));
     }
 }

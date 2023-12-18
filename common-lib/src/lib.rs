@@ -90,6 +90,23 @@ impl From<(usize, usize)> for Point {
     }
 }
 
+impl std::ops::AddAssign<(isize, isize)> for Point {
+    fn add_assign(&mut self, rhs: (isize, isize)) {
+        self.x = (self.x as isize + rhs.0) as usize;
+        self.y = (self.y as isize + rhs.1) as usize;
+    }
+}
+
+impl std::ops::Add<(isize, isize)> for Point {
+    type Output = Self;
+    fn add(self, rhs: (isize, isize)) -> Self {
+        let x = (self.x as isize + rhs.0) as usize;
+        let y = (self.y as isize + rhs.1) as usize;
+
+        Point { x, y }
+    }
+}
+
 pub struct RowIter<'a, T> {
     data: &'a Vec<Vec<T>>,
     n: usize,
