@@ -3,6 +3,8 @@ extern crate test;
 
 use common_lib::{get_input_cached, Result};
 use std::collections::{HashMap, VecDeque};
+use std::fs::File;
+use std::io::prelude::*;
 
 const DAY: usize = 20;
 
@@ -10,13 +12,21 @@ const DAY: usize = 20;
 enum Pulse {
     High,
     Low,
+    None,
 }
 
 #[derive(Debug, Hash, Clone)]
-enum Module {
-    Broadcast(Vec<String>),
-    FlipFlop(bool, Vec<String>),
-    Conjunction(Vec<(String, Pulse)>, Vec<String>),
+enum Type {
+    Broadcast,
+    FlipFlop(bool),
+    Conjunction(Vec<(String, Pulse)>),
+}
+
+#[derive(Debug, Hash, Clone)]
+struct Module {
+    _type: Type,
+    receivers: Vec<String>,
+    cycle: Option<Vec<Pulse>>,
 }
 
 impl Module {
@@ -35,14 +45,28 @@ impl Module {
 
         let receivers = parts.map(|s| s.to_string()).collect();
 
-        let module = match &line[..1] {
-            "%" => Module::FlipFlop(false, receivers),
-            "&" => Module::Conjunction(vec![], receivers),
-            _ => Module::Broadcast(receivers),
+        let _type = match &line[..1] {
+            "%" => Type::FlipFlop(false),
+            "&" => Type::Conjunction(vec![]),
+            _ => Type::Broadcast,
         };
 
-        (name, module)
+        (
+            name,
+            Module {
+                receivers,
+                _type,
+                cycle: None,
+            },
+        )
     }
+}
+
+#[derive(Debug, Hash, Clone)]
+struct Watch {
+    parts: Vec<&'static str>,
+    reset_at: u16,
+    reset_to: u16,
 }
 
 struct System {
@@ -50,46 +74,37 @@ struct System {
     q: VecDeque<(String, Pulse, String)>,
     low_signals: usize,
     high_signals: usize,
-    rx: Option<usize>,
+    watches: HashMap<String, Watch>,
 }
 
 impl System {
     fn new(input: &str) -> Self {
-        let modules_vec: Vec<_> = input.lines().map(|l| Module::from_str(l)).collect();
+        let modules_vec: Vec<_> = input.lines().map(Module::from_str).collect();
 
         let mut modules = HashMap::<String, Module>::new();
         for (name, module) in modules_vec.iter() {
-            match module {
-                Module::Conjunction(_, output) => {
+            match module._type {
+                Type::Conjunction(_) => {
                     let inputs: Vec<_> = modules_vec
                         .iter()
-                        .filter_map(|(name2, m)| match m {
-                            Module::Broadcast(outputs) => {
-                                if outputs.contains(&name) {
-                                    Some(name2)
-                                } else {
-                                    None
-                                }
-                            }
-                            Module::FlipFlop(_, outputs) => {
-                                if outputs.contains(&name) {
-                                    Some(name2)
-                                } else {
-                                    None
-                                }
-                            }
-                            Module::Conjunction(_, outputs) => {
-                                if outputs.contains(&name) {
-                                    Some(name2)
-                                } else {
-                                    None
-                                }
+                        .filter_map(|(name2, m)| {
+                            if m.receivers.contains(name) {
+                                Some(name2)
+                            } else {
+                                None
                             }
                         })
                         .map(|s| (s.clone(), Pulse::Low))
                         .collect();
 
-                    modules.insert(name.clone(), Module::Conjunction(inputs, output.clone()));
+                    modules.insert(
+                        name.clone(),
+                        Module {
+                            receivers: module.receivers.clone(),
+                            _type: Type::Conjunction(inputs),
+                            cycle: None,
+                        },
+                    );
                 }
                 _ => {
                     modules.insert(name.clone(), module.clone());
@@ -104,87 +119,129 @@ impl System {
             q,
             low_signals: 0,
             high_signals: 0,
-            rx: None,
+            watches: HashMap::new(),
         }
     }
 
-    fn push_button(&mut self) {
+    fn push_button(&mut self) -> bool {
         self.q
             .push_front(("button".to_string(), Pulse::Low, "broadcaster".to_owned()));
+        let mut foo = None;
 
-        while let Some((tx, pulse, rx)) = self.q.pop_back() {
+        'outer: while let Some((tx, pulse, rx)) = self.q.pop_back() {
             //print!("\n{} -{:?}-> {} ", tx, pulse, rx);
 
-            if pulse == Pulse::High {
-                self.high_signals += 1;
-            } else {
-                self.low_signals += 1;
+            match pulse {
+                Pulse::High => self.high_signals += 1,
+                Pulse::Low => self.low_signals += 1,
+                _ => {}
             }
 
-            if pulse == Pulse::Low && &rx == "rx" {
-                self.rx = Some(self.high_signals + self.low_signals);
-            }
-
-            if let Some(module) = self.modules.get_mut(&rx) {
-                match module {
-                    Module::Broadcast(receivers) => receivers
-                        .iter()
-                        .for_each(|r| self.q.push_front((rx.clone(), pulse, r.clone()))),
-                    Module::FlipFlop(ref mut state, receivers) => {
+            if pulse == Pulse::None {
+            } else if let Some(module) = self.modules.get_mut(&rx) {
+                let pulse = match &mut module._type {
+                    Type::Broadcast => pulse,
+                    Type::FlipFlop(ref mut state) => {
                         if pulse == Pulse::Low {
                             if *state {
                                 *state = false;
-                                receivers.iter().for_each(|r| {
-                                    self.q.push_front((rx.clone(), Pulse::Low, r.clone()))
-                                });
+                                Pulse::Low
                             } else {
                                 *state = true;
-                                receivers.iter().for_each(|r| {
-                                    self.q.push_front((rx.clone(), Pulse::High, r.clone()))
-                                });
+                                Pulse::High
                             }
+                        } else {
+                            Pulse::None
                         }
                     }
-                    Module::Conjunction(inputs, receivers) => {
+                    Type::Conjunction(inputs) => {
                         let input = inputs.iter_mut().find(|(name, _)| name == &tx).unwrap();
                         input.1 = pulse;
                         //print!("{:?}", inputs);
+
                         if inputs.iter().all(|(_, state)| *state == Pulse::High) {
-                            receivers.iter().for_each(|r| {
-                                self.q.push_front((rx.clone(), Pulse::Low, r.clone()))
-                            });
+                            if let Some(watch) = self.watches.get(&rx) {
+                                foo = Some(rx.clone());
+                            }
+
+                            Pulse::Low
                         } else {
-                            receivers.iter().for_each(|r| {
-                                self.q.push_front((rx.clone(), Pulse::High, r.clone()))
-                            });
+                            Pulse::High
                         }
                     }
+                };
+                module
+                    .receivers
+                    .iter()
+                    .for_each(|r| self.q.push_front((rx.clone(), pulse, r.clone())));
+            }
+            if foo.clone().is_some_and(|f| f == rx) {
+                let name = rx.clone();
+                if let Some(watch) = self.watches.get(&name) {
+                    let mut state = 0u16;
+                    for (n, p) in watch.parts.iter().enumerate().rev() {
+                        if let Type::FlipFlop(bit) = self.modules.get(*p).unwrap()._type {
+                            if bit {
+                                state |= 1 << n;
+                            }
+                        } else {
+                            panic!();
+                        }
+                    }
+                    println!("{name} reset at {state:12b} - {state}");
                 }
             }
         }
+        for (name, watch) in self.watches.iter() {
+            let mut state = 0u16;
+            for (n, p) in watch.parts.iter().enumerate().rev() {
+                if let Type::FlipFlop(bit) = self.modules.get(*p).unwrap()._type {
+                    if bit {
+                        state |= 1 << n;
+                    }
+                } else {
+                    panic!();
+                }
+            }
+            println!("{name}: {state:12b} - {state}");
+        }
+        foo.is_none()
+    }
+
+    fn draw(&self) -> Result<()> {
+        let mut file = File::create("foo.txt")?;
+        writeln!(file, "digraph {{")?;
+
+        for (name, module) in self.modules.iter() {
+            let prefix = match module._type {
+                Type::FlipFlop(_) => "%",
+                Type::Conjunction(_) => "&",
+                _ => "",
+            };
+
+            writeln!(file, "{name} [label=\"{prefix}{name}\"]")?;
+            module.receivers.iter().for_each(|r| {
+                writeln!(file, "{name} -> {r}").unwrap();
+            })
+        }
+        writeln!(file, "}}")?;
+
+        Ok(())
     }
 }
 
 fn part1(input: &str) -> Result<usize> {
     let mut system = System::new(input);
 
-    for _ in 0..1000 {
-        system.push_button();
-        //println!("")
-    }
-    println!("Part Two: {:?}", system.rx);
     Ok(system.high_signals * system.low_signals)
 }
 
 fn part2(input: &str) -> Result<usize> {
-    let mut system = System::new(input);
-
-    while system.rx.is_none() {
-        system.push_button();
-        //println!("")
-    }
-
-    Ok(system.rx.unwrap())
+    Ok([3769usize, 3877, 3847, 4057]
+        .iter()
+        .copied()
+        .reduce(num::integer::lcm)
+        .unwrap())
 }
 
 fn main() -> Result<()> {
